@@ -301,7 +301,9 @@ export default function Bragadle() {
               (Freguesia de {alvo.freguesia}).
             </p>
             <div className="bg-slate-900/80 p-3 rounded-xl text-xs text-slate-400 italic mb-5 leading-relaxed border border-slate-800">
-              "{alvo.curiosidade}"
+            <div className="bg-slate-900/80 p-3 rounded-xl text-xs text-slate-400 italic mb-5 leading-relaxed border border-slate-800">
+  &quot;{alvo.curiosidade}&quot;
+</div>
             </div>
             <button
               onClick={copiarPartilha}
