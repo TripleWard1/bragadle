@@ -342,11 +342,11 @@ export default function Bragadle() {
 
         /* ─── WELCOME SCREEN ───────────────────────────────────────────────── */
         .welcome-wrap {
-          min-height: calc(100vh - 52px);
+          min-height: 100vh;
           display: flex; flex-direction: column;
           align-items: center; justify-content: center;
-          padding: 40px 20px; text-align: center;
-          position: relative; overflow: hidden;
+          padding: 40px 16px; text-align: center;
+          position: relative; overflow-x: hidden;
         }
         .welcome-glow {
           position: absolute; inset: 0; pointer-events: none;
@@ -373,14 +373,18 @@ export default function Bragadle() {
         }
         .welcome-title {
           font-family: var(--display);
-          font-size: clamp(56px, 12vw, 88px);
+          font-size: clamp(28px, 10vw, 80px);
           font-weight: 900;
           letter-spacing: -0.02em;
-          line-height: 0.95;
+          line-height: 1;
+          word-break: normal;
+          overflow-wrap: normal;
+          white-space: nowrap;
           background: linear-gradient(160deg, #fff 0%, var(--gold2) 40%, var(--gold) 70%, #a0722a 100%);
           -webkit-background-clip: text; -webkit-text-fill-color: transparent;
           background-clip: text;
           margin-bottom: 16px;
+          padding: 0 4px;
         }
         .welcome-sub {
           color: var(--text2); font-size: 14px; line-height: 1.7;
@@ -452,12 +456,13 @@ export default function Bragadle() {
         }
         .game-title {
           font-family: var(--display);
-          font-size: clamp(42px, 9vw, 68px); font-weight: 900;
+          font-size: clamp(36px, 10vw, 68px); font-weight: 900;
           letter-spacing: -0.02em; line-height: 1;
+          word-break: break-word; overflow-wrap: anywhere;
           background: linear-gradient(160deg, #fff 0%, var(--gold2) 45%, var(--gold) 75%);
           -webkit-background-clip: text; -webkit-text-fill-color: transparent;
           background-clip: text;
-          margin-bottom: 10px;
+          margin-bottom: 10px; padding: 0 4px;
         }
         .game-sub { color: var(--text2); font-size: 13px; font-weight: 300; }
         .game-player {
@@ -559,11 +564,12 @@ export default function Bragadle() {
         .hint-btn:hover { background: var(--amb-dim); }
         .hint-box {
           background: var(--amb-dim); border: 1px solid var(--amb-bd);
-          border-radius: 12px; padding: 14px 18px;
-          font-size: 12px; color: #f0c060; line-height: 1.75; text-align: left;
-          font-style: italic;
+          border-radius: 12px; padding: 16px 18px;
+          font-size: 13px; color: #f0c060; line-height: 1.8; text-align: left;
+          font-style: italic; word-wrap: break-word; overflow-wrap: break-word;
+          margin-top: 8px;
         }
-        .hint-box strong { color: var(--gold2); font-style: normal; font-weight: 700; }
+        .hint-box strong { color: var(--gold2); font-style: normal; font-weight: 700; display: block; margin-bottom: 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; }
 
         /* ─── GRID ─────────────────────────────────────────────────────────── */
         .grid-outer { overflow-x: auto; padding-bottom: 6px; }
@@ -974,7 +980,7 @@ export default function Bragadle() {
               ) : (
                 <div className="hint-box">
                   <strong>Pista Histórica —</strong>{' '}
-                  {alvo.curiosidade.slice(0, Math.min(alvo.curiosidade.indexOf('.') > 40 ? alvo.curiosidade.indexOf('.') : 90, 90))}...
+                  {alvo.curiosidade}
                 </div>
               )}
             </div>
