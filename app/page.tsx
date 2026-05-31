@@ -1,285 +1,813 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { LOCAIS_BRAGA, Local } from '../data/locais';
 
-// --- FUNÇÕES MATEMÁTICAS E GEOGRÁFICAS ---
-
-// Distância por Haversine
-function calcularDistancia(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-): number {
+// ── HAVERSINE DISTANCE ───────────────────────────────────────────────────────
+function calcularDistancia(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
   const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.sin(dLat / 2) ** 2 +
     Math.cos((lat1 * Math.PI) / 180) *
       Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return Math.round(R * c * 10) / 10; // Retorna com precisão de 100 metros
+      Math.sin(dLon / 2) ** 2;
+  return Math.round(6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 10) / 10;
 }
 
-// Bússola: Calcula para onde o jogador deve andar a partir do palpite até ao alvo
-function calcularDirecao(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-): string {
+// ── BEARING / COMPASS ────────────────────────────────────────────────────────
+function calcularDirecao(lat1: number, lon1: number, lat2: number, lon2: number): string {
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const lat1Rad = (lat1 * Math.PI) / 180;
-  const lat2Rad = (lat2 * Math.PI) / 180;
-
-  const y = Math.sin(dLon) * Math.cos(lat2Rad);
-  const x =
-    Math.cos(lat1Rad) * Math.sin(lat2Rad) -
-    Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLon);
-  let brng = (Math.atan2(y, x) * 180) / Math.PI;
-  brng = (brng + 360) % 360;
-
-  if (brng >= 337.5 || brng < 22.5) return '⬆️ N';
-  if (brng >= 22.5 && brng < 67.5) return '↗️ NE';
-  if (brng >= 67.5 && brng < 112.5) return '➡️ E';
-  if (brng >= 112.5 && brng < 157.5) return '↘️ SE';
-  if (brng >= 157.5 && brng < 202.5) return '⬇️ S';
-  if (brng >= 202.5 && brng < 247.5) return '↙️ SO';
-  if (brng >= 247.5 && brng < 292.5) return '⬅️ O';
-  return '↖️ NO';
+  const lat1R = (lat1 * Math.PI) / 180;
+  const lat2R = (lat2 * Math.PI) / 180;
+  const y = Math.sin(dLon) * Math.cos(lat2R);
+  const x = Math.cos(lat1R) * Math.sin(lat2R) - Math.sin(lat1R) * Math.cos(lat2R) * Math.cos(dLon);
+  let b = ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+  const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
+  return dirs[Math.round(b / 45) % 8];
 }
 
+const COMPASS_ARROWS: Record<string, string> = {
+  N: '↑', NE: '↗', E: '→', SE: '↘', S: '↓', SO: '↙', O: '←', NO: '↖',
+};
+
+// ── TIPO ICONS ────────────────────────────────────────────────────────────────
+const TIPO_ICONS: Record<string, string> = {
+  Igreja: '⛪',
+  Monumento: '🏛️',
+  Jardim: '🌿',
+  Museu: '🖼️',
+  Gastronomia: '🍽️',
+  Arqueologia: '🏺',
+  Desporto: '⚽',
+  Cultura: '🎭',
+  Universidade: '🎓',
+  Miradouro: '🔭',
+};
+
+// ── PROXIMITY COLOR ───────────────────────────────────────────────────────────
+function proximidadeConfig(dist: number, isAlvo: boolean) {
+  if (isAlvo) return { label: 'ALVO!', color: 'var(--green)', bg: 'rgba(34,197,94,0.12)', border: 'rgba(34,197,94,0.5)' };
+  if (dist < 0.5) return { label: `${dist} km`, color: 'var(--green)', bg: 'rgba(34,197,94,0.12)', border: 'rgba(34,197,94,0.5)' };
+  if (dist < 2)   return { label: `${dist} km`, color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.4)' };
+  if (dist < 6)   return { label: `${dist} km`, color: '#fb923c', bg: 'rgba(251,146,60,0.08)', border: 'rgba(251,146,60,0.3)' };
+  return { label: `${dist} km`, color: 'var(--muted)', bg: 'rgba(30,41,59,0.8)', border: 'rgba(51,65,85,0.8)' };
+}
+
+// ── STATS TYPE ────────────────────────────────────────────────────────────────
+interface Stats {
+  jogados: number;
+  vitorias: number;
+  sequencia: number;
+  melhorSeq: number;
+  distribuicao: number[];
+}
+
+const defaultStats: Stats = {
+  jogados: 0, vitorias: 0, sequencia: 0, melhorSeq: 0,
+  distribuicao: [0, 0, 0, 0, 0, 0],
+};
+
+// ────────────────────────────────────────────────────────────────────────────
 export default function Bragadle() {
-  // --- ESTADOS DO JOGO ---
   const [alvo, setAlvo] = useState<Local | null>(null);
   const [inputVal, setInputVal] = useState('');
   const [sugestoes, setSugestoes] = useState<Local[]>([]);
   const [tentativas, setTentativas] = useState<Local[]>([]);
   const [ganhou, setGanhou] = useState(false);
+  const [fimDeJogo, setFimDeJogo] = useState(false);
   const [mostrarDica, setMostrarDica] = useState(false);
-  const [estatisticas, setEstatisticas] = useState({
-    jogados: 0,
-    vitorias: 0,
-    sequencia: 0,
-    melhorSeq: 0,
-  });
-  const [notificacao, setNotificacao] = useState<string | null>(null);
+  const [stats, setStats] = useState<Stats>(defaultStats);
+  const [toast, setToast] = useState<{ msg: string; tipo: 'ok' | 'err' | 'info' } | null>(null);
+  const [modalStats, setModalStats] = useState(false);
+  const [modalInfo, setModalInfo] = useState(false);
+  const [selectedGuess, setSelectedGuess] = useState<string | null>(null);
+  const [animatingRow, setAnimatingRow] = useState<string | null>(null);
 
+  const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const MAX_TENTATIVAS = 6;
 
-  // --- CARREGAMENTO INICIAL E PERSISTÊNCIA ---
+  // ── INIT ──────────────────────────────────────────────────────────────────
   useEffect(() => {
-    // Escolha determinística baseada no dia civil para simular jogo diário
-    const diaDoAno = Math.floor(new Date().getTime() / (1000 * 60 * 60 * 24));
-    const localSorteado = LOCAIS_BRAGA[diaDoAno % LOCAIS_BRAGA.length];
-    setAlvo(localSorteado);
+    const diaDoAno = Math.floor(Date.now() / 86_400_000);
+    setAlvo(LOCAIS_BRAGA[diaDoAno % LOCAIS_BRAGA.length]);
 
-    // Carregar Estatísticas do LocalStorage
-    const guardadas = localStorage.getItem('bragadle_stats');
-    if (guardadas) {
-      setEstatisticas(JSON.parse(guardadas));
+    const saved = localStorage.getItem('bragadle_v2');
+    if (saved) {
+      try { setStats(JSON.parse(saved)); } catch { /* ignore */ }
     }
+    // Auto-focus
+    setTimeout(() => inputRef.current?.focus(), 300);
   }, []);
 
-  // Fechar dropdown ao clicar fora
+  // ── CLOSE DROPDOWN ON OUTSIDE CLICK ──────────────────────────────────────
   useEffect(() => {
-    function escutarCliqueFora(event: MouseEvent) {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
+    const fn = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node))
         setSugestoes([]);
-      }
-    }
-    document.addEventListener('mousedown', escutarCliqueFora);
-    return () => document.removeEventListener('mousedown', escutarCliqueFora);
+    };
+    document.addEventListener('mousedown', fn);
+    return () => document.removeEventListener('mousedown', fn);
   }, []);
 
-  // --- LÓGICA DO INPUT & AUTOCOMPLETE ---
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const valor = e.target.value;
-    setInputVal(valor);
+  // ── TOAST ─────────────────────────────────────────────────────────────────
+  const showToast = useCallback((msg: string, tipo: 'ok' | 'err' | 'info' = 'info') => {
+    setToast({ msg, tipo });
+    setTimeout(() => setToast(null), 4000);
+  }, []);
 
-    if (valor.trim().length > 0) {
-      const filtradas = LOCAIS_BRAGA.filter(
-        (local) =>
-          local.nome.toLowerCase().includes(valor.toLowerCase()) &&
-          !tentativas.some((t) => t.id === local.id)
-      );
-      setSugestoes(filtradas);
-    } else {
-      setSugestoes([]);
-    }
+  // ── AUTOCOMPLETE ──────────────────────────────────────────────────────────
+  const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = e.target.value;
+    setInputVal(v);
+    setSugestoes(
+      v.trim().length === 0
+        ? []
+        : LOCAIS_BRAGA.filter(
+            l =>
+              l.nome.toLowerCase().includes(v.toLowerCase()) &&
+              !tentativas.some(t => t.id === l.id)
+          ).slice(0, 8)
+    );
   };
 
-  const selecionarSugestao = (local: Local) => {
-    processarPalpite(local);
+  // ── GUESS ─────────────────────────────────────────────────────────────────
+  const processarPalpite = (local: Local) => {
+    if (ganhou || fimDeJogo) return;
+    setAnimatingRow(local.id);
+    setTimeout(() => setAnimatingRow(null), 500);
+
+    const novas = [local, ...tentativas];
+    setTentativas(novas);
     setInputVal('');
     setSugestoes([]);
-  };
-
-  // --- PROCESSAMENTO DA TENTATIVA ---
-  const processarPalpite = (local: Local) => {
-    if (ganhou) return;
-
-    const novasTentativas = [local, ...tentativas];
-    setTentativas(novasTentativas);
 
     if (local.id === alvo?.id) {
       setGanhou(true);
-      triggerNotificacao('🎉 Excelente! Conheces Braga como ninguém!');
-
-      // Atualizar Estatísticas
-      const novasStats = {
-        jogados: estatisticas.jogados + 1,
-        vitorias: estatisticas.vitorias + 1,
-        sequencia: estatisticas.sequencia + 1,
-        melhorSeq: Math.max(estatisticas.sequencia + 1, estatisticas.melhorSeq),
+      showToast('🎉 Parabéns! Conheces Braga como ninguém!', 'ok');
+      const newStats: Stats = {
+        jogados: stats.jogados + 1,
+        vitorias: stats.vitorias + 1,
+        sequencia: stats.sequencia + 1,
+        melhorSeq: Math.max(stats.sequencia + 1, stats.melhorSeq),
+        distribuicao: stats.distribuicao.map((v, i) => i === novas.length - 1 ? v + 1 : v),
       };
-      setEstatisticas(novasStats);
-      localStorage.setItem('bragadle_stats', JSON.stringify(novasStats));
-    } else if (novasTentativas.length >= 6 && local.id !== alvo?.id) {
-      triggerNotificacao(`😢 Que pena! O local secreto era: ${alvo?.nome}`);
-      const novasStats = {
-        ...estatisticas,
-        jogados: estatisticas.jogados + 1,
-        sequencia: 0,
-      };
-      setEstatisticas(novasStats);
-      localStorage.setItem('bragadle_stats', JSON.stringify(novasStats));
+      setStats(newStats);
+      localStorage.setItem('bragadle_v2', JSON.stringify(newStats));
+    } else if (novas.length >= MAX_TENTATIVAS) {
+      setFimDeJogo(true);
+      showToast(`😢 Era: ${alvo?.nome}`, 'err');
+      const newStats: Stats = { ...stats, jogados: stats.jogados + 1, sequencia: 0 };
+      setStats(newStats);
+      localStorage.setItem('bragadle_v2', JSON.stringify(newStats));
     }
   };
 
-  const triggerNotificacao = (msg: string) => {
-    setNotificacao(msg);
-    setTimeout(() => setNotificacao(null), 5000);
-  };
-
-  // Copiar grelha de resultado para partilha rápida social
+  // ── SHARE ─────────────────────────────────────────────────────────────────
   const copiarPartilha = () => {
     if (!alvo) return;
-    let grelha = `⛪ Bragadle - 2026 (${tentativas.length}/6)\n\n`;
-
-    [...tentativas].reverse().forEach((t) => {
+    let g = `⛪ BRAGADLE #${Math.floor(Date.now() / 86_400_000) % LOCAIS_BRAGA.length} — ${tentativas.length}/${MAX_TENTATIVAS}\n\n`;
+    [...tentativas].reverse().forEach(t => {
       const tipo = t.tipo === alvo.tipo ? '🟩' : '🟥';
       const freg = t.freguesia === alvo.freguesia ? '🟩' : '🟥';
-      const sec =
-        t.seculo === alvo.seculo ? '🟩' : t.seculo < alvo.seculo ? '⬆️' : '⬇️';
-      const dist = t.id === alvo.id ? '🟩' : '🔸';
-      grelha += `${tipo}${freg}${sec}${dist}\n`;
+      const sec = t.seculo === alvo.seculo ? '🟩' : t.seculo < alvo.seculo ? '🟦' : '🟧';
+      const dist = t.id === alvo.id ? '🟩' : calcularDistancia(t.lat, t.lng, alvo.lat, alvo.lng) < 2 ? '🟨' : '🟥';
+      g += `${tipo}${freg}${sec}${dist}\n`;
     });
-
-    grelha += '\nJoga em: https://bragadle.vercel.app';
-    navigator.clipboard.writeText(grelha);
-    triggerNotificacao('📋 Resultado copiado para a área de transferência!');
+    g += '\n🏛️ bragadle.vercel.app';
+    navigator.clipboard.writeText(g);
+    showToast('📋 Resultado copiado!', 'ok');
   };
 
+  // ── LOADING ───────────────────────────────────────────────────────────────
   if (!alvo) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white font-sans">
-        <div className="animate-pulse text-xl tracking-widest text-red-400">
-          ⚡ A CARREGAR BRACARA AUGUSTA...
-        </div>
+      <div style={{
+        minHeight: '100vh', background: 'var(--bg)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexDirection: 'column', gap: '1rem',
+      }}>
+        <div className="logo-pulse">⛪</div>
+        <p style={{ color: 'var(--muted)', fontFamily: 'var(--font-mono)', letterSpacing: '0.2em', fontSize: '0.75rem' }}>
+          BRACARA AUGUSTA A CARREGAR...
+        </p>
       </div>
     );
   }
 
+  const jogoTerminado = ganhou || fimDeJogo;
+  const maxDist = Math.max(...tentativas.map(t => calcularDistancia(t.lat, t.lng, alvo.lat, alvo.lng)), 1);
+
   return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-950 to-black text-slate-100 font-sans p-3 sm:p-6 selection:bg-red-500 selection:text-white">
-      {/* Toast Notificação */}
-      {notificacao && (
-        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-slate-800 border border-red-500/50 px-6 py-3 rounded-xl shadow-2xl text-center font-semibold text-sm backdrop-blur-md animate-fade-in text-white">
-          {notificacao}
+    <>
+      {/* ── CSS VARIABLES & GLOBAL STYLES ─────────────────────────────────── */}
+      <style>{`
+        :root {
+          --bg: #09090f;
+          --surface: #0f1117;
+          --surface2: #151822;
+          --border: #1e2333;
+          --border2: #252d3d;
+          --text: #e2e8f0;
+          --muted: #4a5568;
+          --muted2: #718096;
+          --red: #ef4444;
+          --red-dim: rgba(239,68,68,0.15);
+          --red-border: rgba(239,68,68,0.35);
+          --green: #22c55e;
+          --green-dim: rgba(34,197,94,0.12);
+          --green-border: rgba(34,197,94,0.4);
+          --gold: #f59e0b;
+          --gold-dim: rgba(245,158,11,0.1);
+          --font-display: 'Georgia', 'Times New Roman', serif;
+          --font-body: 'system-ui', '-apple-system', sans-serif;
+          --font-mono: 'Courier New', monospace;
+          --radius: 12px;
+          --shadow: 0 4px 24px rgba(0,0,0,0.6);
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { color-scheme: dark; }
+        body {
+          background: var(--bg);
+          color: var(--text);
+          font-family: var(--font-body);
+          min-height: 100vh;
+          overflow-x: hidden;
+        }
+
+        /* ── BACKGROUND ──────────────────────────────────────── */
+        .bg-layer {
+          position: fixed; inset: 0; pointer-events: none; z-index: 0;
+          background:
+            radial-gradient(ellipse 80% 50% at 50% -10%, rgba(239,68,68,0.06) 0%, transparent 70%),
+            radial-gradient(ellipse 60% 40% at 80% 100%, rgba(245,158,11,0.04) 0%, transparent 60%);
+        }
+        .bg-grid {
+          position: fixed; inset: 0; pointer-events: none; z-index: 0;
+          background-image:
+            linear-gradient(rgba(30,35,50,0.4) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(30,35,50,0.4) 1px, transparent 1px);
+          background-size: 60px 60px;
+          mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%);
+        }
+
+        /* ── LAYOUT ──────────────────────────────────────────── */
+        .page-wrap {
+          position: relative; z-index: 1;
+          max-width: 860px; margin: 0 auto;
+          padding: 1.5rem 1rem 4rem;
+          display: flex; flex-direction: column; align-items: center; gap: 0;
+        }
+
+        /* ── NAV ─────────────────────────────────────────────── */
+        .top-nav {
+          width: 100%; display: flex; justify-content: space-between;
+          align-items: center; margin-bottom: 2rem;
+        }
+        .nav-btn {
+          background: var(--surface); border: 1px solid var(--border);
+          color: var(--muted2); border-radius: 8px; padding: 0.4rem 0.7rem;
+          font-size: 0.75rem; cursor: pointer; transition: all 0.2s;
+          display: flex; align-items: center; gap: 0.35rem;
+        }
+        .nav-btn:hover { border-color: var(--red-border); color: var(--red); }
+
+        /* ── HEADER ──────────────────────────────────────────── */
+        .header { text-align: center; margin-bottom: 2.5rem; }
+        .header-pill {
+          display: inline-block;
+          background: var(--red-dim); border: 1px solid var(--red-border);
+          color: var(--red); font-family: var(--font-mono);
+          font-size: 0.6rem; letter-spacing: 0.25em; text-transform: uppercase;
+          padding: 0.25rem 0.75rem; border-radius: 999px; margin-bottom: 0.75rem;
+        }
+        .header-title {
+          font-family: var(--font-display);
+          font-size: clamp(3rem, 10vw, 5.5rem);
+          font-weight: 900; letter-spacing: -0.03em;
+          line-height: 1;
+          background: linear-gradient(135deg, #ef4444 0%, #f97316 40%, #f59e0b 80%);
+          -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+          background-clip: text;
+          text-shadow: none;
+          position: relative;
+        }
+        .header-sub {
+          color: var(--muted2); font-size: 0.8rem; margin-top: 0.6rem;
+          max-width: 380px; margin-left: auto; margin-right: auto;
+          line-height: 1.6;
+        }
+        .header-counter {
+          font-family: var(--font-mono); font-size: 0.65rem;
+          color: var(--muted); letter-spacing: 0.15em; margin-top: 0.5rem;
+        }
+
+        /* ── STATS STRIP ─────────────────────────────────────── */
+        .stats-strip {
+          width: 100%; max-width: 480px;
+          display: grid; grid-template-columns: repeat(4, 1fr);
+          gap: 0.5rem; margin-bottom: 2rem;
+        }
+        .stat-card {
+          background: var(--surface); border: 1px solid var(--border);
+          border-radius: var(--radius); padding: 0.75rem 0.5rem;
+          text-align: center; cursor: pointer;
+          transition: border-color 0.2s, transform 0.2s;
+        }
+        .stat-card:hover { border-color: var(--border2); transform: translateY(-1px); }
+        .stat-val { font-size: 1.4rem; font-weight: 800; line-height: 1; }
+        .stat-lbl { font-size: 0.55rem; text-transform: uppercase;
+          letter-spacing: 0.1em; color: var(--muted); margin-top: 0.25rem; }
+
+        /* ── INPUT ───────────────────────────────────────────── */
+        .input-wrap { width: 100%; max-width: 520px; position: relative; margin-bottom: 2rem; }
+        .input-box {
+          width: 100%; background: var(--surface);
+          border: 1.5px solid var(--border2); border-radius: 14px;
+          display: flex; align-items: center; padding: 0 1rem;
+          transition: border-color 0.25s, box-shadow 0.25s;
+        }
+        .input-box:focus-within {
+          border-color: rgba(239,68,68,0.6);
+          box-shadow: 0 0 0 3px rgba(239,68,68,0.08);
+        }
+        .input-icon { font-size: 0.9rem; color: var(--muted); flex-shrink: 0; }
+        .input-field {
+          flex: 1; background: transparent; border: none; outline: none;
+          color: var(--text); font-size: 0.9rem; padding: 0.85rem 0.75rem;
+          font-family: var(--font-body);
+        }
+        .input-field::placeholder { color: var(--muted); }
+        .input-count {
+          font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted);
+          flex-shrink: 0; padding: 0.25rem 0.5rem;
+          background: var(--bg); border: 1px solid var(--border);
+          border-radius: 6px;
+        }
+
+        /* ── DROPDOWN ────────────────────────────────────────── */
+        .dropdown {
+          position: absolute; top: calc(100% + 6px); left: 0; width: 100%;
+          background: var(--surface); border: 1px solid var(--border2);
+          border-radius: var(--radius); overflow: hidden;
+          box-shadow: 0 16px 48px rgba(0,0,0,0.7);
+          z-index: 50; max-height: 280px; overflow-y: auto;
+        }
+        .dropdown::-webkit-scrollbar { width: 4px; }
+        .dropdown::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+        .dropdown-item {
+          width: 100%; border: none; background: none; cursor: pointer;
+          padding: 0.7rem 1rem; display: flex; align-items: center;
+          gap: 0.75rem; text-align: left; transition: background 0.15s;
+          border-bottom: 1px solid var(--border);
+        }
+        .dropdown-item:last-child { border-bottom: none; }
+        .dropdown-item:hover { background: rgba(239,68,68,0.06); }
+        .dropdown-item:hover .di-name { color: var(--red); }
+        .di-icon {
+          width: 2rem; height: 2rem; border-radius: 8px;
+          background: var(--surface2); border: 1px solid var(--border);
+          display: flex; align-items: center; justify-content: center;
+          font-size: 0.9rem; flex-shrink: 0;
+        }
+        .di-name { color: var(--text); font-size: 0.85rem; font-weight: 500; transition: color 0.15s; }
+        .di-meta { display: flex; gap: 0.4rem; margin-top: 0.1rem; }
+        .di-tag {
+          font-size: 0.6rem; font-family: var(--font-mono);
+          color: var(--muted2); background: var(--bg);
+          padding: 0.1rem 0.4rem; border-radius: 4px;
+          border: 1px solid var(--border);
+        }
+
+        /* ── HINT ────────────────────────────────────────────── */
+        .hint-wrap { width: 100%; max-width: 520px; text-align: center; margin-bottom: 1.5rem; }
+        .hint-btn {
+          background: none; border: none; cursor: pointer;
+          font-size: 0.75rem; color: var(--gold);
+          text-decoration: underline; text-underline-offset: 3px;
+          letter-spacing: 0.05em;
+        }
+        .hint-btn:hover { color: #fbbf24; }
+        .hint-box {
+          background: rgba(245,158,11,0.05); border: 1px solid rgba(245,158,11,0.2);
+          border-radius: var(--radius); padding: 0.9rem 1.1rem;
+          font-size: 0.78rem; color: #fcd34d; line-height: 1.6;
+          text-align: left; margin-top: 0.5rem;
+        }
+        .hint-box strong { color: #fbbf24; }
+
+        /* ── GRID HEADER ─────────────────────────────────────── */
+        .grid-header {
+          display: grid;
+          grid-template-columns: 2fr 1.2fr 1.4fr 1.2fr 1.4fr;
+          gap: 0.4rem; width: 100%;
+          font-size: 0.55rem; text-transform: uppercase;
+          letter-spacing: 0.12em; color: var(--muted);
+          font-family: var(--font-mono); margin-bottom: 0.6rem;
+          padding: 0 0.1rem;
+        }
+        .grid-header > div { text-align: center; }
+        .grid-header > div:first-child { text-align: left; padding-left: 0.5rem; }
+
+        /* ── GUESS ROW ───────────────────────────────────────── */
+        .guess-row {
+          display: grid;
+          grid-template-columns: 2fr 1.2fr 1.4fr 1.2fr 1.4fr;
+          gap: 0.4rem; width: 100%;
+          animation: rowSlide 0.4s cubic-bezier(0.34, 1.4, 0.64, 1) forwards;
+          cursor: pointer;
+        }
+        .guess-row:hover .cell { filter: brightness(1.1); }
+        @keyframes rowSlide {
+          from { opacity: 0; transform: translateY(-12px) scale(0.98); }
+          to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .cell {
+          border-radius: 10px; padding: 0.6rem 0.4rem;
+          display: flex; flex-direction: column;
+          align-items: center; justify-content: center;
+          min-height: 3.2rem; border: 1px solid var(--border);
+          background: var(--surface); transition: filter 0.2s;
+          position: relative; overflow: hidden;
+        }
+        .cell::before {
+          content: ''; position: absolute; inset: 0;
+          background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, transparent 50%);
+          pointer-events: none;
+        }
+        .cell-correct {
+          background: var(--green-dim) !important;
+          border-color: var(--green-border) !important;
+        }
+        .cell-wrong {
+          background: var(--red-dim);
+          border-color: var(--red-border);
+        }
+        .cell-name { font-size: 0.72rem; font-weight: 600; text-align: center; line-height: 1.3; }
+        .cell-sub  { font-size: 0.58rem; color: var(--muted2); margin-top: 0.15rem; font-family: var(--font-mono); }
+        .cell-arrow { font-size: 1rem; line-height: 1; }
+        .cell-dist { font-size: 0.72rem; font-weight: 700; }
+
+        /* ── PROXIMITY BAR ───────────────────────────────────── */
+        .prox-bar {
+          position: absolute; bottom: 0; left: 0;
+          height: 3px; border-radius: 0 0 10px 10px;
+          transition: width 0.5s ease;
+        }
+
+        /* ── END CARD ────────────────────────────────────────── */
+        .end-card {
+          width: 100%; max-width: 520px;
+          background: var(--surface); border: 1px solid var(--border2);
+          border-top: 3px solid;
+          border-radius: var(--radius); padding: 1.5rem;
+          margin-bottom: 2rem;
+          animation: scaleUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .end-card.win  { border-top-color: var(--green); }
+        .end-card.lose { border-top-color: var(--red); }
+        @keyframes scaleUp {
+          from { opacity: 0; transform: scale(0.94); }
+          to   { opacity: 1; transform: scale(1); }
+        }
+        .end-title { font-size: 1.3rem; font-weight: 800; margin-bottom: 0.3rem; }
+        .end-sub { font-size: 0.82rem; color: var(--muted2); margin-bottom: 1rem; }
+        .end-curiosidade {
+          background: var(--surface2); border: 1px solid var(--border);
+          border-radius: 10px; padding: 0.85rem 1rem;
+          font-size: 0.78rem; color: var(--muted2); font-style: italic;
+          line-height: 1.65; margin-bottom: 1.25rem;
+          position: relative;
+        }
+        .end-curiosidade::before {
+          content: '"'; position: absolute; top: 0.4rem; left: 0.6rem;
+          font-size: 2rem; color: var(--red-border); line-height: 1;
+          font-family: var(--font-display);
+        }
+        .end-curiosidade p { padding-left: 0.75rem; }
+        .share-btn {
+          width: 100%; padding: 0.85rem;
+          background: linear-gradient(135deg, #ef4444, #f97316);
+          border: none; border-radius: 10px; cursor: pointer;
+          color: white; font-size: 0.8rem; font-weight: 700;
+          letter-spacing: 0.1em; text-transform: uppercase;
+          transition: opacity 0.2s, transform 0.15s;
+        }
+        .share-btn:hover { opacity: 0.92; transform: translateY(-1px); }
+
+        /* ── EMPTY SLOTS ─────────────────────────────────────── */
+        .empty-slot {
+          display: grid;
+          grid-template-columns: 2fr 1.2fr 1.4fr 1.2fr 1.4fr;
+          gap: 0.4rem; width: 100%; opacity: 0.25;
+        }
+        .empty-cell {
+          height: 3.2rem; border-radius: 10px;
+          border: 1px dashed var(--border); background: transparent;
+        }
+
+        /* ── TOAST ───────────────────────────────────────────── */
+        .toast {
+          position: fixed; top: 1.25rem; left: 50%; transform: translateX(-50%);
+          z-index: 100; padding: 0.6rem 1.25rem;
+          border-radius: 999px; font-size: 0.82rem; font-weight: 600;
+          backdrop-filter: blur(12px); white-space: nowrap;
+          animation: toastIn 0.3s cubic-bezier(0.16,1,0.3,1) forwards;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        }
+        .toast-ok   { background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.4); color: #86efac; }
+        .toast-err  { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); color: #fca5a5; }
+        .toast-info { background: rgba(30,41,59,0.9);  border: 1px solid var(--border2); color: var(--text); }
+        @keyframes toastIn {
+          from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+          to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+
+        /* ── MODAL OVERLAY ───────────────────────────────────── */
+        .overlay {
+          position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+          backdrop-filter: blur(4px); z-index: 80;
+          display: flex; align-items: center; justify-content: center;
+          padding: 1rem;
+          animation: fadeIn 0.2s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal {
+          background: var(--surface); border: 1px solid var(--border2);
+          border-radius: 16px; padding: 1.75rem; width: 100%; max-width: 420px;
+          max-height: 90vh; overflow-y: auto;
+          box-shadow: 0 24px 80px rgba(0,0,0,0.8);
+        }
+        .modal-title {
+          font-size: 1.15rem; font-weight: 800; margin-bottom: 1.25rem;
+          display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-close {
+          background: none; border: none; cursor: pointer;
+          color: var(--muted2); font-size: 1.2rem; line-height: 1;
+          padding: 0.2rem; border-radius: 6px; transition: color 0.2s;
+        }
+        .modal-close:hover { color: var(--text); }
+
+        /* ── DIST BAR STATS ──────────────────────────────────── */
+        .dist-row {
+          display: flex; align-items: center; gap: 0.5rem;
+          font-size: 0.75rem; margin-bottom: 0.4rem; font-family: var(--font-mono);
+        }
+        .dist-label { width: 1.2rem; text-align: right; color: var(--muted2); }
+        .dist-bar-wrap { flex: 1; height: 1.4rem; background: var(--surface2);
+          border-radius: 4px; overflow: hidden; }
+        .dist-bar-fill {
+          height: 100%; background: var(--red);
+          border-radius: 4px; display: flex; align-items: center;
+          padding-left: 0.4rem; font-size: 0.65rem; color: white;
+          font-weight: 700; transition: width 0.5s ease;
+          min-width: 1.5rem;
+        }
+
+        /* ── HOW TO PLAY ITEMS ───────────────────────────────── */
+        .how-item { display: flex; gap: 0.75rem; margin-bottom: 0.9rem; align-items: flex-start; }
+        .how-icon {
+          width: 2rem; height: 2rem; border-radius: 8px; flex-shrink: 0;
+          display: flex; align-items: center; justify-content: center; font-size: 0.9rem;
+        }
+        .how-text { font-size: 0.8rem; color: var(--muted2); line-height: 1.5; }
+        .how-text strong { color: var(--text); }
+
+        /* ── LEGEND ──────────────────────────────────────────── */
+        .legend {
+          display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;
+          font-size: 0.6rem; color: var(--muted); margin-top: 3rem;
+          padding-top: 1.5rem; border-top: 1px solid var(--border);
+          width: 100%; font-family: var(--font-mono); letter-spacing: 0.08em;
+        }
+
+        /* ── LOGO PULSE ──────────────────────────────────────── */
+        @keyframes logoPulse { 0%,100%{transform:scale(1);opacity:1;} 50%{transform:scale(1.1);opacity:0.7;} }
+        .logo-pulse { font-size: 3rem; animation: logoPulse 2s ease-in-out infinite; }
+
+        /* ── ATTEMPTS BUBBLES ────────────────────────────────── */
+        .attempt-bubbles {
+          display: flex; gap: 0.4rem; margin-top: 0.75rem;
+          justify-content: center;
+        }
+        .bubble {
+          width: 0.6rem; height: 0.6rem; border-radius: 50%;
+          background: var(--border); transition: background 0.3s;
+        }
+        .bubble.used  { background: var(--red); }
+        .bubble.win   { background: var(--green); }
+
+        /* ── RESPONSIVE ──────────────────────────────────────── */
+        @media (max-width: 560px) {
+          .grid-header, .guess-row, .empty-slot {
+            grid-template-columns: 1.8fr 1fr 1.2fr 1fr 1.2fr;
+            gap: 0.3rem;
+          }
+          .cell { min-height: 2.8rem; padding: 0.4rem 0.25rem; }
+          .cell-name { font-size: 0.62rem; }
+          .cell-sub  { font-size: 0.52rem; }
+          .header-title { font-size: 3rem; }
+        }
+      `}</style>
+
+      {/* ── BG ──────────────────────────────────────────────────────────────── */}
+      <div className="bg-layer" />
+      <div className="bg-grid" />
+
+      {/* ── TOAST ───────────────────────────────────────────────────────────── */}
+      {toast && (
+        <div className={`toast toast-${toast.tipo}`}>{toast.msg}</div>
+      )}
+
+      {/* ── STATS MODAL ─────────────────────────────────────────────────────── */}
+      {modalStats && (
+        <div className="overlay" onClick={() => setModalStats(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-title">
+              <span>📊 Estatísticas</span>
+              <button className="modal-close" onClick={() => setModalStats(false)}>✕</button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '0.6rem', marginBottom: '1.5rem' }}>
+              {[
+                { v: stats.jogados, l: 'Jogados' },
+                { v: stats.jogados > 0 ? `${Math.round((stats.vitorias / stats.jogados) * 100)}%` : '0%', l: 'Vitórias', color: 'var(--green)' },
+                { v: `${stats.sequencia}🔥`, l: 'Streak' },
+                { v: `${stats.melhorSeq}👑`, l: 'Máx. Streak', color: 'var(--gold)' },
+              ].map(s => (
+                <div key={s.l} className="stat-card" style={{ cursor: 'default' }}>
+                  <div className="stat-val" style={{ color: s.color || 'var(--text)' }}>{s.v}</div>
+                  <div className="stat-lbl">{s.l}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginBottom: '0.5rem', fontSize: '0.7rem', color: 'var(--muted)', fontFamily: 'var(--font-mono)', letterSpacing: '0.1em' }}>
+              DISTRIBUIÇÃO DE TENTATIVAS
+            </div>
+            {stats.distribuicao.map((v, i) => {
+              const maxV = Math.max(...stats.distribuicao, 1);
+              const pct = Math.max((v / maxV) * 100, 4);
+              return (
+                <div key={i} className="dist-row">
+                  <span className="dist-label">{i + 1}</span>
+                  <div className="dist-bar-wrap">
+                    <div className="dist-bar-fill" style={{ width: `${pct}%` }}>{v > 0 ? v : ''}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
-      <div className="max-w-4xl mx-auto flex flex-col items-center">
-        {/* HEADER */}
-        <header className="text-center my-6 sm:my-10 animate-fade-in">
-          <div className="inline-block bg-red-500/10 border border-red-500/30 px-3 py-1 rounded-full text-xs text-red-400 font-mono tracking-widest uppercase mb-3">
-            Edição Turística Oficial
+      {/* ── HOW TO PLAY MODAL ───────────────────────────────────────────────── */}
+      {modalInfo && (
+        <div className="overlay" onClick={() => setModalInfo(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-title">
+              <span>🏛️ Como Jogar</span>
+              <button className="modal-close" onClick={() => setModalInfo(false)}>✕</button>
+            </div>
+            <p style={{ fontSize: '0.8rem', color: 'var(--muted2)', marginBottom: '1.25rem', lineHeight: 1.6 }}>
+              Descobre o <strong style={{color:'var(--text)'}}>local secreto de Braga</strong> em {MAX_TENTATIVAS} tentativas. A cada palpite recebes pistas sobre o local alvo.
+            </p>
+            {[
+              { icon: '📂', bg: 'rgba(239,68,68,0.1)', title: 'Categoria', desc: '🟩 Verde = mesma categoria. 🟥 Vermelho = diferente.' },
+              { icon: '🏡', bg: 'rgba(59,130,246,0.1)', title: 'Freguesia', desc: '🟩 Verde = mesma freguesia. 🟥 Vermelho = freguesia diferente.' },
+              { icon: '⏳', bg: 'rgba(245,158,11,0.1)', title: 'Século', desc: '🟩 Verde = século correto. ⬆️ = alvo é mais recente. ⬇️ = alvo é mais antigo.' },
+              { icon: '🧭', bg: 'rgba(34,197,94,0.1)', title: 'Proximidade', desc: 'Distância em km até ao alvo + direção da bússola. Amarelo = menos de 2km. Verde = alvo encontrado!' },
+            ].map(h => (
+              <div key={h.title} className="how-item">
+                <div className="how-icon" style={{ background: h.bg }}>{h.icon}</div>
+                <div className="how-text"><strong>{h.title}</strong><br />{h.desc}</div>
+              </div>
+            ))}
+            <p style={{ fontSize: '0.72rem', color: 'var(--muted)', marginTop: '0.5rem', lineHeight: 1.5 }}>
+              💡 Após 3 tentativas falhadas, podes desbloquear uma pista histórica sobre o local secreto.
+            </p>
           </div>
-          <h1 className="text-4xl sm:text-6xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-red-500 via-orange-400 to-amber-300 drop-shadow">
-            BRAGADLE
-          </h1>
-          <p className="text-slate-400 text-xs sm:text-sm mt-2 max-w-md mx-auto leading-relaxed">
-            Descobre o monumento, praça, jardim ou segredo gastronómico
-            escondido na Cidade dos Arcebispos.
+        </div>
+      )}
+
+      {/* ── PAGE ────────────────────────────────────────────────────────────── */}
+      <div className="page-wrap">
+
+        {/* NAV */}
+        <nav className="top-nav">
+          <div style={{ display: 'flex', gap: '0.4rem' }}>
+            <button className="nav-btn" onClick={() => setModalInfo(true)}>
+              <span>❓</span> Como Jogar
+            </button>
+          </div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--muted)', letterSpacing: '0.1em' }}>
+            #{Math.floor(Date.now() / 86_400_000) % LOCAIS_BRAGA.length}
+          </div>
+          <button className="nav-btn" onClick={() => setModalStats(true)}>
+            📊 Stats
+          </button>
+        </nav>
+
+        {/* HEADER */}
+        <header className="header">
+          <div className="header-pill">⛪ Cidade dos Arcebispos · Edição 2026</div>
+          <h1 className="header-title">BRAGADLE</h1>
+          <p className="header-sub">
+            Descobre o monumento, jardim, igreja ou segredo gastronómico escondido na Cidade dos Arcebispos.
           </p>
+          {/* Attempt bubbles */}
+          <div className="attempt-bubbles">
+            {Array.from({ length: MAX_TENTATIVAS }).map((_, i) => {
+              const t = [...tentativas].reverse()[i];
+              const cls = !t ? 'bubble' : t.id === alvo?.id ? 'bubble win' : 'bubble used';
+              return <div key={i} className={cls} />;
+            })}
+          </div>
         </header>
 
-        {/* DASHBOARD DE ESTATÍSTICAS */}
-        <section className="w-full max-w-md bg-slate-900/60 border border-slate-800 backdrop-blur-md rounded-2xl p-4 mb-6 flex justify-around text-center shadow-lg">
-          <div>
-            <div className="text-xl sm:text-2xl font-black text-slate-200">
-              {estatisticas.jogados}
-            </div>
-            <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
-              Jogados
-            </div>
+        {/* STATS STRIP */}
+        <div className="stats-strip" onClick={() => setModalStats(true)} style={{ cursor: 'pointer' }}>
+          <div className="stat-card">
+            <div className="stat-val">{stats.jogados}</div>
+            <div className="stat-lbl">Jogados</div>
           </div>
-          <div>
-            <div className="text-xl sm:text-2xl font-black text-green-400">
-              {estatisticas.jogados > 0
-                ? Math.round(
-                    (estatisticas.vitorias / estatisticas.jogados) * 100
-                  )
-                : 0}
-              %
+          <div className="stat-card">
+            <div className="stat-val" style={{ color: 'var(--green)' }}>
+              {stats.jogados > 0 ? `${Math.round((stats.vitorias / stats.jogados) * 100)}%` : '—'}
             </div>
-            <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
-              Vitórias
-            </div>
+            <div className="stat-lbl">Vitórias</div>
           </div>
-          <div>
-            <div className="text-xl sm:text-2xl font-black text-orange-400">
-              {estatisticas.sequencia} 🔥
-            </div>
-            <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
-              Streak Ativa
-            </div>
+          <div className="stat-card">
+            <div className="stat-val" style={{ color: '#f97316' }}>{stats.sequencia}🔥</div>
+            <div className="stat-lbl">Streak</div>
           </div>
-          <div>
-            <div className="text-xl sm:text-2xl font-black text-amber-400">
-              {estatisticas.melhorSeq} 👑
-            </div>
-            <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
-              Max Streak
-            </div>
+          <div className="stat-card">
+            <div className="stat-val" style={{ color: 'var(--gold)' }}>{stats.melhorSeq}👑</div>
+            <div className="stat-lbl">Máx.</div>
           </div>
-        </section>
+        </div>
 
-        {/* PAINEL DE ENTRADA / INPUT */}
-        {!ganhou && tentativas.length < 6 && (
-          <div ref={dropdownRef} className="w-full max-w-md relative mb-8 z-30">
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-2 flex items-center shadow-2xl focus-within:border-red-500/50 transition-all duration-300">
-              <span className="pl-3 text-lg text-slate-500">🔍</span>
+        {/* END CARD */}
+        {jogoTerminado && (
+          <div className={`end-card ${ganhou ? 'win' : 'lose'}`} style={{ width: '100%', maxWidth: '520px' }}>
+            <div className="end-title">
+              {ganhou ? '🎉 Vitória!' : '💀 Esgotaste as tentativas!'}
+            </div>
+            <div className="end-sub">
+              O local secreto era <strong style={{ color: ganhou ? 'var(--green)' : 'var(--red)' }}>{alvo.nome}</strong>{' '}
+              <span style={{ color: 'var(--muted)', fontSize: '0.75rem' }}>({alvo.freguesia} · {TIPO_ICONS[alvo.tipo]} {alvo.tipo})</span>
+            </div>
+            <div className="end-curiosidade">
+              <p>{alvo.curiosidade}</p>
+            </div>
+            <button className="share-btn" onClick={copiarPartilha}>
+              Partilhar Resultado 🚀
+            </button>
+          </div>
+        )}
+
+        {/* INPUT */}
+        {!jogoTerminado && (
+          <div ref={dropdownRef} className="input-wrap">
+            <div className="input-box">
+              <span className="input-icon">🔍</span>
               <input
+                ref={inputRef}
                 type="text"
                 value={inputVal}
-                onChange={handleInputChange}
-                placeholder="Digita um monumento ou local de Braga..."
-                className="w-full bg-transparent px-3 py-2 text-sm sm:text-base text-slate-200 placeholder-slate-500 focus:outline-none"
+                onChange={handleInput}
+                placeholder="Digita um local de Braga..."
+                className="input-field"
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && sugestoes.length > 0) {
+                    processarPalpite(sugestoes[0]);
+                  }
+                  if (e.key === 'Escape') setSugestoes([]);
+                }}
               />
+              <span className="input-count">
+                {MAX_TENTATIVAS - tentativas.length}/{MAX_TENTATIVAS}
+              </span>
             </div>
 
-            {/* Dropdown Customizado de Sugestões Interativas */}
             {sugestoes.length > 0 && (
-              <div className="absolute top-full left-0 w-full mt-2 bg-slate-950/95 border border-slate-800 rounded-xl shadow-2xl overflow-hidden z-40 backdrop-blur-xl max-h-60 overflow-y-auto divide-y divide-slate-900 custom-scrollbar">
-                {sugestoes.map((local) => (
+              <div className="dropdown">
+                {sugestoes.map(l => (
                   <button
-                    key={local.id}
-                    onClick={() => selecionarSugestao(local)}
-                    className="w-full text-left px-4 py-3 text-sm text-slate-300 hover:bg-red-500/10 hover:text-red-400 transition-colors flex justify-between items-center"
+                    key={l.id}
+                    className="dropdown-item"
+                    onClick={() => processarPalpite(l)}
                   >
-                    <span className="font-medium">{local.nome}</span>
-                    <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full font-mono">
-                      {local.tipo}
-                    </span>
+                    <div className="di-icon">{TIPO_ICONS[l.tipo] || '📍'}</div>
+                    <div style={{ flex: 1, overflow: 'hidden' }}>
+                      <div className="di-name">{l.nome}</div>
+                      <div className="di-meta">
+                        <span className="di-tag">{l.tipo}</span>
+                        <span className="di-tag">{l.freguesia}</span>
+                        <span className="di-tag">Séc. {l.seculo}</span>
+                      </div>
+                    </div>
                   </button>
                 ))}
               </div>
@@ -287,168 +815,152 @@ export default function Bragadle() {
           </div>
         )}
 
-        {/* INTERFACE DE SUCESSO / FIM DE JOGO */}
-        {(ganhou || tentativas.length >= 6) && (
-          <div className="w-full max-w-md bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-2xl p-6 text-center shadow-2xl mb-8 border-t-4 border-t-red-500 animate-scale-up">
-            <h3 className="text-xl font-bold mb-2">
-              {ganhou
-                ? '🎉 Vitória Conseguida!'
-                : '💀 Esgotaste as tentativas!'}
-            </h3>
-            <p className="text-sm text-slate-400 mb-4">
-              O local secreto era{' '}
-              <span className="text-red-400 font-bold">{alvo.nome}</span>{' '}
-              (Freguesia de {alvo.freguesia}).
-            </p>
-            <div className="bg-slate-900/80 p-3 rounded-xl text-xs text-slate-400 italic mb-5 leading-relaxed border border-slate-800">
-            <div className="bg-slate-900/80 p-3 rounded-xl text-xs text-slate-400 italic mb-5 leading-relaxed border border-slate-800">
-  &quot;{alvo.curiosidade}&quot;
-</div>
-            </div>
-            <button
-              onClick={copiarPartilha}
-              className="w-full bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-500 hover:to-orange-400 text-white font-bold py-3 px-6 rounded-xl transition duration-300 shadow-lg shadow-red-900/30 text-sm tracking-wider uppercase"
-            >
-              Partilhar Desempenho 🚀
-            </button>
-          </div>
-        )}
-
-        {/* AJUDA / BOTÃO DE PISTA DINÂMICO */}
-        {!ganhou && tentativas.length >= 3 && (
-          <div className="w-full max-w-md text-center mb-8">
+        {/* HINT */}
+        {!jogoTerminado && tentativas.length >= 3 && (
+          <div className="hint-wrap">
             {!mostrarDica ? (
-              <button
-                onClick={() => setMostrarDica(true)}
-                className="text-xs font-semibold text-amber-400 hover:text-amber-300 underline underline-offset-4 tracking-wider"
-              >
-                💡 Estás com dificuldades? Desbloquear Pista Histórica
+              <button className="hint-btn" onClick={() => setMostrarDica(true)}>
+                💡 Estás com dificuldades? Desbloquear pista histórica
               </button>
             ) : (
-              <div className="bg-amber-500/5 border border-amber-500/20 text-amber-300 p-4 rounded-xl text-xs leading-relaxed max-w-sm mx-auto animate-fade-in">
-                <strong>Pista:</strong> {alvo.curiosidade.split(',')[0]}...
+              <div className="hint-box">
+                <strong>Pista:</strong> {alvo.curiosidade.slice(0, alvo.curiosidade.indexOf(',') > 40 ? alvo.curiosidade.indexOf(',') : 80)}...
               </div>
             )}
           </div>
         )}
 
-        {/* GRELHA COMPACTA DE FEEDBACK (Estilo Wordle/Pokedle Avançado) */}
-        <div className="w-full max-w-3xl overflow-x-auto pb-4 px-1 rounded-xl">
-          <div className="grid grid-cols-5 gap-2 sm:gap-3 text-center text-[11px] sm:text-xs font-bold tracking-wider uppercase text-slate-500 min-w-[580px] px-2 mb-3">
-            <div>📍 Local Turístico</div>
-            <div>📂 Categoria</div>
-            <div>🏡 Freguesia</div>
-            <div>⏳ Época / Séc.</div>
-            <div>🧭 Proximidade</div>
-          </div>
+        {/* GRID HEADER */}
+        {(tentativas.length > 0 || jogoTerminado) && (
+          <div style={{ width: '100%', overflowX: 'auto', paddingBottom: '0.5rem' }}>
+            <div style={{ minWidth: '520px' }}>
+              <div className="grid-header" style={{ minWidth: '520px' }}>
+                <div>📍 Local</div>
+                <div>📂 Categoria</div>
+                <div>🏡 Freguesia</div>
+                <div>⏳ Século</div>
+                <div>🧭 Distância</div>
+              </div>
 
-          <div className="flex flex-col gap-2.5 min-w-[580px] px-1">
-            {tentativas.map((t) => {
-              const éAlvo = t.id === alvo.id;
-              const éMesmoTipo = t.tipo === alvo.tipo;
-              const éMesmaFreguesia = t.freguesia === alvo.freguesia;
-              const éMesmoSeculo = t.seculo === alvo.seculo;
+              {/* GUESS ROWS */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', minWidth: '520px' }}>
+                {tentativas.map((t, idx) => {
+                  const isAlvo = t.id === alvo.id;
+                  const mesmoTipo = t.tipo === alvo.tipo;
+                  const mesmaFreg = t.freguesia === alvo.freguesia;
+                  const mesmoSec = t.seculo === alvo.seculo;
+                  const dist = calcularDistancia(t.lat, t.lng, alvo.lat, alvo.lng);
+                  const dir = calcularDirecao(t.lat, t.lng, alvo.lat, alvo.lng);
+                  const prox = proximidadeConfig(dist, isAlvo);
+                  const pct = isAlvo ? 100 : Math.max(0, Math.round((1 - dist / (maxDist * 1.2)) * 100));
 
-              const dist = calcularDistancia(t.lat, t.lng, alvo.lat, alvo.lng);
-              const bússola = calcularDirecao(t.lat, t.lng, alvo.lat, alvo.lng);
-
-              return (
-                <div
-                  key={t.id}
-                  className="grid grid-cols-5 gap-2 sm:gap-3 text-center text-xs font-medium animate-row-pop"
-                >
-                  {/* Nome do Local */}
-                  <div
-                    className={`p-3.5 rounded-xl flex items-center justify-center border transition-all duration-500 ${
-                      éAlvo
-                        ? 'bg-green-500/20 border-green-500 text-green-300 shadow-md shadow-green-950/20 font-bold'
-                        : 'bg-slate-900/90 border-slate-800 text-slate-300'
-                    }`}
-                  >
-                    <span className="truncate max-w-[110px]" title={t.nome}>
-                      {t.nome}
-                    </span>
-                  </div>
-
-                  {/* Tipo / Categoria */}
-                  <div
-                    className={`p-3.5 rounded-xl flex flex-col items-center justify-center border text-[10px] sm:text-xs font-semibold ${
-                      éMesmoTipo
-                        ? 'bg-green-500/20 border-green-500 text-green-300 shadow-inner'
-                        : 'bg-red-500/10 border-red-500/30 text-red-400'
-                    }`}
-                  >
-                    <span>{t.tipo}</span>
-                  </div>
-
-                  {/* Freguesia */}
-                  <div
-                    className={`p-3.5 rounded-xl flex items-center justify-center border text-[10px] sm:text-xs font-semibold ${
-                      éMesmaFreguesia
-                        ? 'bg-green-500/20 border-green-500 text-green-300'
-                        : 'bg-red-500/10 border-red-500/30 text-red-400'
-                    }`}
-                  >
-                    <span className="truncate max-w-[90px]" title={t.freguesia}>
-                      {t.freguesia}
-                    </span>
-                  </div>
-
-                  {/* Século */}
-                  <div
-                    className={`p-3.5 rounded-xl flex flex-col items-center justify-center border ${
-                      éMesmoSeculo
-                        ? 'bg-green-500/20 border-green-500 text-green-300'
-                        : 'bg-red-500/10 border-red-500/30 text-red-400'
-                    }`}
-                  >
-                    <span className="font-bold">Séc. {t.seculo}</span>
-                    {!éMesmoSeculo && (
-                      <span className="text-[9px] text-slate-500 mt-0.5">
-                        {t.seculo < alvo.seculo
-                          ? 'Mais Recente ⬆️'
-                          : 'Mais Antigo ⬇️'}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Distância e Direção */}
-                  <div
-                    className={`p-3.5 rounded-xl flex flex-col items-center justify-center border ${
-                      éAlvo
-                        ? 'bg-green-500/20 border-green-500 text-green-300'
-                        : dist < 1.5
-                        ? 'bg-amber-500/20 border-amber-500 text-amber-300 animate-pulse'
-                        : 'bg-slate-900/90 border-slate-800 text-slate-400'
-                    }`}
-                  >
-                    {éAlvo ? (
-                      <span className="font-bold">📍 Alvo</span>
-                    ) : (
-                      <>
-                        <span className="font-bold text-slate-200">
-                          {dist} km
+                  return (
+                    <div
+                      key={t.id}
+                      className="guess-row"
+                      style={{ animationDelay: `${idx * 0.02}s` }}
+                      onClick={() => setSelectedGuess(selectedGuess === t.id ? null : t.id)}
+                    >
+                      {/* Name */}
+                      <div className={`cell ${isAlvo ? 'cell-correct' : ''}`}>
+                        <span className="cell-name" title={t.nome}
+                          style={{ color: isAlvo ? 'var(--green)' : 'var(--text)' }}>
+                          {t.nome}
                         </span>
-                        <span className="text-[9px] font-mono mt-0.5 text-orange-400 tracking-tight">
-                          {bússola}
+                        {isAlvo && <span className="cell-sub" style={{ color: 'var(--green)' }}>✓ CORRETO</span>}
+                      </div>
+
+                      {/* Tipo */}
+                      <div className={`cell ${mesmoTipo ? 'cell-correct' : 'cell-wrong'}`}>
+                        <span style={{ fontSize: '1rem' }}>{TIPO_ICONS[t.tipo]}</span>
+                        <span className="cell-sub" style={{ color: mesmoTipo ? 'var(--green)' : 'var(--muted2)' }}>
+                          {t.tipo}
                         </span>
-                      </>
-                    )}
+                      </div>
+
+                      {/* Freguesia */}
+                      <div className={`cell ${mesmaFreg ? 'cell-correct' : 'cell-wrong'}`}>
+                        <span className="cell-name" title={t.freguesia}
+                          style={{ fontSize: '0.65rem', color: mesmaFreg ? 'var(--green)' : 'var(--text)' }}>
+                          {t.freguesia}
+                        </span>
+                      </div>
+
+                      {/* Século */}
+                      <div className={`cell ${mesmoSec ? 'cell-correct' : 'cell-wrong'}`}>
+                        <span className="cell-name" style={{ color: mesmoSec ? 'var(--green)' : 'var(--text)' }}>
+                          Séc. {t.seculo}
+                        </span>
+                        {!mesmoSec && (
+                          <span className="cell-sub">
+                            {t.seculo < alvo.seculo ? '⬆️ mais recente' : '⬇️ mais antigo'}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Proximidade */}
+                      <div className="cell" style={{
+                        background: prox.bg,
+                        borderColor: prox.border,
+                      }}>
+                        {isAlvo ? (
+                          <span style={{ fontSize: '1.1rem' }}>📍</span>
+                        ) : (
+                          <>
+                            <span className="cell-dist" style={{ color: prox.color }}>{prox.label}</span>
+                            <span className="cell-arrow" style={{ color: prox.color }}>
+                              {COMPASS_ARROWS[dir]} {dir}
+                            </span>
+                          </>
+                        )}
+                        <div className="prox-bar" style={{
+                          width: `${pct}%`,
+                          background: isAlvo ? 'var(--green)' : dist < 2 ? 'var(--gold)' : 'var(--red)',
+                        }} />
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* EMPTY SLOTS */}
+                {!jogoTerminado && Array.from({ length: MAX_TENTATIVAS - tentativas.length }).map((_, i) => (
+                  <div key={i} className="empty-slot">
+                    {Array.from({ length: 5 }).map((__, j) => (
+                      <div key={j} className="empty-cell" />
+                    ))}
                   </div>
-                </div>
-              );
-            })}
+                ))}
+              </div>
+            </div>
           </div>
+        )}
+
+        {/* ZERO STATE */}
+        {tentativas.length === 0 && !jogoTerminado && (
+          <div style={{
+            textAlign: 'center', color: 'var(--muted)',
+            fontSize: '0.8rem', padding: '2rem 0',
+            fontFamily: 'var(--font-mono)', letterSpacing: '0.08em',
+          }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem', opacity: 0.4 }}>🏛️</div>
+            Começa a digitar o nome de um local de Braga...
+            <br />
+            <span style={{ fontSize: '0.65rem', color: 'var(--border2)' }}>
+              {LOCAIS_BRAGA.length} locais disponíveis
+            </span>
+          </div>
+        )}
+
+        {/* LEGEND */}
+        <div className="legend">
+          <span>🟩 Correto</span>
+          <span>🟥 Incorreto</span>
+          <span>⬆️⬇️ Direção Cronológica</span>
+          <span>🧭 Bússola Real</span>
+          <span>🟨 Muito Perto (&lt;2km)</span>
         </div>
 
-        {/* AJUDA DE LEGENDA */}
-        <footer className="mt-12 text-slate-600 text-[10px] flex gap-4 border-t border-slate-900 pt-6 w-full justify-center">
-          <div>🟩 Correto</div>
-          <div>🟥 Incorreto</div>
-          <div>⬆️ ⬇️ Direção Cronológica</div>
-          <div>🧭 Orientação de Bússola Real</div>
-        </footer>
       </div>
-    </main>
+    </>
   );
 }
