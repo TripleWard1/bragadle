@@ -44,7 +44,7 @@ export const LOCAIS_BRAGA: Local[] = [
     id: '4',
     nome: 'Jardim de Santa Bárbara',
     tipo: 'Jardim',
-    freguesia: 'Sé',
+    freguesia: 'São João do Souto',
     seculo: 20,
     lat: 41.5512,
     lng: -8.4261,
@@ -64,7 +64,7 @@ export const LOCAIS_BRAGA: Local[] = [
     id: '6',
     nome: 'Palácio do Raio',
     tipo: 'Monumento',
-    freguesia: 'São Lázaro',
+    freguesia: 'São João do Souto',
     seculo: 18,
     lat: 41.5484,
     lng: -8.4214,
@@ -102,9 +102,9 @@ export const LOCAIS_BRAGA: Local[] = [
   },
   {
     id: '10',
-    nome: 'Termas Romanas de Maximinos',
+    nome: 'Termas Romanas do Alto da Cividade',
     tipo: 'Arqueologia',
-    freguesia: 'Maximinos',
+    freguesia: 'Cividade',
     seculo: 1,
     lat: 41.5458,
     lng: -8.4303,
@@ -128,7 +128,7 @@ export const LOCAIS_BRAGA: Local[] = [
     seculo: 14,
     lat: 41.5511,
     lng: -8.4241,
-    curiosidade: 'Único vestígio do castelo medieval de Braga, erguido no século XIV durante o reinado de D. Afonso IV. O restante castelo foi demolido em 1906 para alargamento das vias urbanas, sobrevivendo apenas esta torre encravada entre edifícios modernos no coração da cidade histórica.'
+    curiosidade: 'Único vestígio do castelo medieval de Braga, erguido no século XIV durante o reinado de D. Dinis. O restante castelo foi demolido em 1906 para alargamento das vias urbanas, sobrevivendo apenas esta torre encravada entre edifícios modernos no coração da cidade histórica.'
   },
   {
     id: '13',
@@ -148,13 +148,13 @@ export const LOCAIS_BRAGA: Local[] = [
     seculo: 17,
     lat: 41.5517,
     lng: -8.4294,
-    curiosidade: 'Instalado num palácio aristocrático do século XVII pertencente à família dos Biscainhos. O jardim formal barroco, com esculturas de granito, tanques e buxos recortados, é considerado um dos mais bem preservados do norte de Portugal e raramente faltou em nenhum calendário de jardins históricos.'
+    curiosidade: 'Instalado num palácio aristocrático do século XVII pertencente à família Pereira. O jardim formal barroco, com esculturas de granito, tanques e buxos recortados, é considerado um dos mais bem preservados do norte de Portugal e raramente faltou em nenhum calendário de jardins históricos.'
   },
   {
     id: '15',
     nome: 'GNRation',
     tipo: 'Cultura',
-    freguesia: 'São Vicente',
+    freguesia: 'São João do Souto',
     seculo: 21,
     lat: 41.5528,
     lng: -8.4222,
@@ -178,13 +178,13 @@ export const LOCAIS_BRAGA: Local[] = [
     seculo: 17,
     lat: 41.5498,
     lng: -8.4242,
-    curiosidade: 'Templo barroco do século XVII com fachada em granito ricamente esculpida. Segundo a tradição local, existem dois galos escondidos nos frisos da fachada — os solteiros que os conseguissem encontrar às cegas numa noite de São João ficavam prometidos a casamento próximo.'
+    curiosidade: 'Considerada o primeiro grande marco do barroco bracarense, a sua primeira pedra foi lançada em 1625 pelo arcebispo D. Afonso Furtado de Mendonça no Largo Carlos Amarante. O corpo da igreja foi reconstruído nos anos 30 do século XVIII porque ameaçava ruína — a fachada original em pedra lavrada foi a única poupada. Segundo a lenda, existem dois galos em alto-relevo ocultos na fachada e a moça casadoira que os encontrar tem casamento assegurado para breve.'
   },
   {
     id: '18',
     nome: 'Theatro Circo',
     tipo: 'Cultura',
-    freguesia: 'São Lázaro',
+    freguesia: 'São João do Souto',
     seculo: 20,
     lat: 41.5494,
     lng: -8.4211,
@@ -228,7 +228,7 @@ export const LOCAIS_BRAGA: Local[] = [
     seculo: 20,
     lat: 41.5504,
     lng: -8.4258,
-    curiosidade: 'Pastelaria histórica no centro de Braga famosa pela tradição do "Bananeiro": na noite de 24 de dezembro, os bracarenses fazem fila à porta para comprar os seus bolos natalícios característicos. A tradição remonta ao início do século XX e tornou-se um ritual que nenhuma geração de bracarenses ousou quebrar.'
+    curiosidade: 'Garrafeira histórica no centro de Braga famosa pela tradição do "Bananeiro": na véspera de Natal, os bracarenses fazem fila à porta para comprar as suas bananas e moscatel. A tradição remonta ao início do século XX e tornou-se um ritual que nenhuma geração de bracarenses ousou quebrar.'
   },
   {
     id: '23',
@@ -244,7 +244,7 @@ export const LOCAIS_BRAGA: Local[] = [
     id: '24',
     nome: 'Igreja do Pópulo',
     tipo: 'Igreja',
-    freguesia: 'São Vicente',
+    freguesia: 'São João do Souto',
     seculo: 16,
     lat: 41.5522,
     lng: -8.4278,
@@ -258,7 +258,7 @@ export const LOCAIS_BRAGA: Local[] = [
     seculo: 17,
     lat: 41.5542,
     lng: -8.4213,
-    curiosidade: 'Erguida no local onde, segundo a tradição, esteve sepultado o mártir São Vicente antes de os seus restos serem trasladados para Lisboa em 1173 a bordo de um navio guiado por corvos — origem do símbolo de Lisboa. A atual fachada barroca do século XVII tem uma torre sineira que domina a zona norte do centro histórico.'
+    curiosidade: 'Uma lápide visigótica de 618 d.C. embutida na parede da sacristia é o monumento cristão mais antigo de Braga — e a primeira referência documental conhecida ao dia da semana "segunda-feira". A atual fachada barroca, concluída em 1717, contou com a intervenção do mestre de obras Manuel Fernandes da Silva. O interior é integralmente revestido por painéis de azulejos de 1873, produzidos pela Fábrica de Cerâmica das Devesas, com cenas do martírio de São Vicente.'
   },
   {
     id: '26',
@@ -274,7 +274,7 @@ export const LOCAIS_BRAGA: Local[] = [
     id: '27',
     nome: 'Miradouro do Monte do Picoto',
     tipo: 'Jardim',
-    freguesia: 'Nogueiró',
+    freguesia: 'São Lázaro',
     seculo: 20,
     lat: 41.5391,
     lng: -8.4162,
@@ -284,11 +284,11 @@ export const LOCAIS_BRAGA: Local[] = [
     id: '28',
     nome: 'Antigo Paço Episcopal',
     tipo: 'Monumento',
-    freguesia: 'Sé',
+    freguesia: 'São João do Souto',
     seculo: 14,
     lat: 41.5514,
     lng: -8.4265,
-    curiosidade: 'Residência oficial dos arcebispos de Braga desde o século XIV, o complexo inclui alas medieval, manuelina e barroca. Desde 1979 acolhe a Reitoria da Universidade do Minho — uma das maiores reconversões de um palácio episcopal em campus universitário em toda a Europa.'
+    curiosidade: 'Residência oficial dos arcebispos de Braga desde o século XIV, o complexo inclui alas medieval, renascentista e barroca. Desde 1979 acolhe a Reitoria da Universidade do Minho — uma das maiores reconversões de um palácio episcopal em campus universitário em toda a Europa.'
   },
   {
     id: '29',
@@ -314,7 +314,7 @@ export const LOCAIS_BRAGA: Local[] = [
     id: '31',
     nome: 'Santuário de Santa Maria da Falperra',
     tipo: 'Igreja',
-    freguesia: 'Nogueiró',
+    freguesia: 'Nogueira',
     seculo: 18,
     lat: 41.5312,
     lng: -8.3934,
@@ -328,7 +328,7 @@ export const LOCAIS_BRAGA: Local[] = [
     seculo: 19,
     lat: 41.5551,
     lng: -8.3806,
-    curiosidade: 'Inaugurado a 27 de março de 1882 pelo rei D. Luís I, é o funicular mais antigo do mundo ainda em funcionamento por sistema de contrapeso de água. Não tem motor elétrico: o carro que desce, carregado com água num reservatório próprio, puxa automaticamente o carro que sobe através de um cabo de aço.'
+    curiosidade: 'Inaugurado a 27 de março de 1882 é o funicular mais antigo do mundo ainda em funcionamento por sistema de contrapeso de água. Não tem motor elétrico: o carro que desce, carregado com água num reservatório próprio, puxa automaticamente o carro que sobe através de um cabo de aço.'
   },
   {
     id: '33',
@@ -354,7 +354,7 @@ export const LOCAIS_BRAGA: Local[] = [
     id: '35',
     nome: 'Arcada — Praça da República',
     tipo: 'Monumento',
-    freguesia: 'São Lázaro',
+    freguesia: 'São João do Souto',
     seculo: 18,
     lat: 41.5510,
     lng: -8.4221,
@@ -384,7 +384,7 @@ export const LOCAIS_BRAGA: Local[] = [
     id: '38',
     nome: 'Café Vianna',
     tipo: 'Cultura',
-    freguesia: 'São Lázaro',
+    freguesia: 'São João do Souto',
     seculo: 19,
     lat: 41.5511,
     lng: -8.4223,
@@ -394,7 +394,7 @@ export const LOCAIS_BRAGA: Local[] = [
     id: '39',
     nome: 'Museu Nogueira da Silva',
     tipo: 'Museu',
-    freguesia: 'São Vítor',
+    freguesia: 'São Lázaro',
     seculo: 20,
     lat: 41.5521,
     lng: -8.4204,
@@ -424,7 +424,7 @@ export const LOCAIS_BRAGA: Local[] = [
     id: '42',
     nome: 'Casa Rolão',
     tipo: 'Monumento',
-    freguesia: 'São Vítor',
+    freguesia: 'São Lázaro',
     seculo: 18,
     lat: 41.5518,
     lng: -8.4184,
@@ -464,7 +464,7 @@ export const LOCAIS_BRAGA: Local[] = [
     id: '46',
     nome: 'Igreja dos Terceiros',
     tipo: 'Igreja',
-    freguesia: 'São Lázaro',
+    freguesia: 'São João do Souto',
     seculo: 17,
     lat: 41.5496,
     lng: -8.4216,
@@ -478,7 +478,7 @@ export const LOCAIS_BRAGA: Local[] = [
     seculo: 18,
     lat: 41.5518,
     lng: -8.4259,
-    curiosidade: 'Chafariz público do século XVIII na Praça do Município, construído no âmbito do abastecimento de água da cidade. É encimado por uma estátua feminina em granito com uma coroa de castelos — símbolo heráldico de Braga — representando alegoricamente a cidade como uma rainha coroada.'
+    curiosidade: 'Chafariz público do século XVIII no Largo do Paço, construído no âmbito do abastecimento de água da cidade. É encimado por uma estátua feminina em granito com uma coroa de castelos — símbolo heráldico de Braga — representando alegoricamente a cidade como uma rainha coroada.'
   },
   {
     id: '48',
@@ -494,7 +494,7 @@ export const LOCAIS_BRAGA: Local[] = [
     id: '49',
     nome: 'Palácio dos Arcebispos',
     tipo: 'Monumento',
-    freguesia: 'Sé',
+    freguesia: 'São João do Souto',
     seculo: 18,
     lat: 41.5513,
     lng: -8.4259,
@@ -524,7 +524,7 @@ export const LOCAIS_BRAGA: Local[] = [
     id: '53',
     nome: 'Estátua de D. Diogo de Sousa',
     tipo: 'Monumento',
-    freguesia: 'São Lázaro',
+    freguesia: 'São João do Souto',
     seculo: 21,
     lat: 41.5508,
     lng: -8.4219,
@@ -534,11 +534,11 @@ export const LOCAIS_BRAGA: Local[] = [
     id: '54',
     nome: 'Forum Braga',
     tipo: 'Cultura',
-    freguesia: 'Nogueira',
+    freguesia: 'São Lázaro',
     seculo: 20,
     lat: 41.5385,
     lng: -8.4215,
-    curiosidade: 'Inaugurado em 1997, foi o primeiro grande centro comercial do distrito de Braga e um dos maiores do país na época. O seu auditório, com capacidade para cerca de 2.500 pessoas, é um dos maiores do norte de Portugal e acolhe regularmente concertos, congressos e espetáculos de escala nacional.'
+    curiosidade: 'Inaugurado em 1981, foi o primeiro grande centro comercial do distrito de Braga e um dos maiores do país na época. O seu auditório, com capacidade para cerca de 2.500 pessoas, é um dos maiores do norte de Portugal e acolhe regularmente concertos, congressos e espetáculos de escala nacional.'
   },
   {
     id: '55',
@@ -555,10 +555,10 @@ export const LOCAIS_BRAGA: Local[] = [
     nome: 'Igreja de São Lázaro',
     tipo: 'Igreja',
     freguesia: 'São Lázaro',
-    seculo: 18,
+    seculo: 20,
     lat: 41.5461,
     lng: -8.4195,
-    curiosidade: 'Templo barroco do século XVIII que marca o limite sul do centro histórico de Braga, no local onde existia um hospital medieval de leprosos — os "lázaros", donde vem o nome da freguesia. Assinala o início da antiga estrada real que ligava Braga a Guimarães e ao Porto através do vale do Ave.'
+    curiosidade: 'A atual Igreja de São Lázaro foi construída de raiz após a demolição da antiga igreja paroquial em 1976, por projeto do arquiteto lisboeta José Maia dos Santos, com uma linha modernista de traço brutalista em pedra. Em frente ao templo encontra-se um cruzeiro seiscentista que pertencia à antiga igreja e foi cuidadosamente transferido para manter a ligação histórica do lugar.'
   },
   {
     id: '57',
@@ -584,17 +584,17 @@ export const LOCAIS_BRAGA: Local[] = [
     id: '59',
     nome: 'Posto de Turismo de Braga',
     tipo: 'Cultura',
-    freguesia: 'Sé',
+    freguesia: 'São Lázaro',
     seculo: 20,
     lat: 41.5506,
     lng: -8.4264,
-    curiosidade: 'O Posto de Turismo de Braga funciona no coração do centro histórico, junto ao Arco da Porta Nova, e é o ponto de partida oficial para explorar a cidade. Fornece mapas, informação sobre rotas históricas e visitas guiadas em vários idiomas. Braga foi Capital Europeia da Juventude em 2012 e Capital Portuguesa da Cultura em 2025.'
+    curiosidade: 'Inaugurado a 22 de junho de 1937, nasceu da iniciativa de um grupo de comerciantes locais que fundaram a Comissão Municipal de Turismo de Braga — numa época em que o turismo em Portugal dava ainda os primeiros passos. O edifício foi projetado pelo arquiteto Moura Coutinho. Em 2003 foi renovado e passou a albergar também o Centro de Interpretação Turístico Cultural da cidade.'
   },
   {
     id: '60',
     nome: 'Café Astoria',
     tipo: 'Cultura',
-    freguesia: 'São Lázaro',
+    freguesia: 'São João do Souto',
     seculo: 20,
     lat: 41.5509,
     lng: -8.4222,
@@ -614,7 +614,7 @@ export const LOCAIS_BRAGA: Local[] = [
     id: '62',
     nome: 'Igreja de São Marcos',
     tipo: 'Igreja',
-    freguesia: 'São Marcos',
+    freguesia: 'São João do Souto',
     seculo: 16,
     lat: 41.5558,
     lng: -8.4234,
@@ -634,11 +634,11 @@ export const LOCAIS_BRAGA: Local[] = [
     id: '64',
     nome: 'Biblioteca Lúcio Craveiro da Silva',
     tipo: 'Cultura',
-    freguesia: 'Sé',
+    freguesia: 'Cividade',
     seculo: 20,
     lat: 41.5507,
     lng: -8.4231,
-    curiosidade: 'A principal biblioteca pública de Braga, inaugurada em 1996 numa antiga fábrica de fiação do século XIX reabilitada para o efeito. Com mais de 200.000 volumes, é das maiores bibliotecas municipais do país. O nome homenageia o filósofo e jesuíta bracarense Lúcio Craveiro da Silva (1914-2002).'
+    curiosidade: 'Inaugurada a 21 de dezembro de 2004, nasceu de uma parceria entre a Câmara Municipal de Braga e a Universidade do Minho no âmbito do projeto Bibliopólis. O edifício, projetado pelo arquiteto Mário Abreu, foi construído de raiz no centro histórico e preserva vestígios arqueológicos romanos visíveis no interior. Possui cerca de 325.000 obras e um auditório com 160 lugares. O nome homenageia o filósofo e jesuíta bracarense Lúcio Craveiro da Silva (1914-2002).'
   },
   {
     id: '65',
