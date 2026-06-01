@@ -971,7 +971,7 @@ export default function Bragadle() {
           )}
 
           {/* Hint */}
-          {!jogoFim && tentativas.length >= 3 && (
+          {!jogoFim && tentativas.length >= MAX - 1 && (
             <div className="hint-wrap">
               {!hintVis ? (
                 <button className="hint-btn" onClick={() => setHintVis(true)}>
