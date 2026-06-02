@@ -101,7 +101,7 @@ export default function Bragadle() {
   // ── INIT ────────────────────────────────────────────────────────────────────
   useEffect(() => {
     const day = Math.floor(Date.now() / 86_400_000);
-    const id = new Date().toISOString().slice(0, 10);
+    const id = new Date().toLocaleDateString('sv-SE'); // gives YYYY-MM-DD in local timezone
     setDayId(id);
     setAlvo(LOCAIS_BRAGA[day % LOCAIS_BRAGA.length]);
     try {
@@ -199,17 +199,16 @@ export default function Bragadle() {
     const alreadyPlayed = await fbHasPlayedToday(playerName, dayId);
     if (alreadyPlayed) return;
     await fbMarkPlayed(playerName, dayId);
-    if (!won) return;
-    const pts = PONTOS[tries - 1] ?? 0;
+    const pts = won ? (PONTOS[tries - 1] ?? 0) : 0;
     const existing = await fbGetPlayer(playerName);
     await fbSetPlayer(playerName, {
       name: playerName,
       pts: (existing?.pts ?? 0) + pts,
       jogos: (existing?.jogos ?? 0) + 1,
-      wins: (existing?.wins ?? 0) + 1,
-      best: Math.max(existing?.best ?? 0, tries === 1 ? 100 : pts),
+      wins: (existing?.wins ?? 0) + (won ? 1 : 0),
+      best: existing?.best ?? 0,
     });
-    showToast(`+${pts} pts adicionados ao ranking!`, true);
+    if (won) showToast(`+${pts} pts adicionados ao ranking!`, true);
   }
 
   // ── LOAD RANKING ─────────────────────────────────────────────────────────────
