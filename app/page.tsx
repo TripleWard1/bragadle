@@ -194,13 +194,16 @@ export default function Bragadle() {
 
   // ── FIREBASE SCORE SUBMIT ────────────────────────────────────────────────────
   async function submitScore(tries: number, won: boolean) {
-    if (!playerName || scoreSubmitted) return;
+    console.log('submitScore called', { playerName, scoreSubmitted, dayId, won });
+    if (!playerName || scoreSubmitted) { console.log('blocked by scoreSubmitted'); return; }
     setScoreSubmitted(true);
     const alreadyPlayed = await fbHasPlayedToday(playerName, dayId);
-    if (alreadyPlayed) return;
+    console.log('alreadyPlayed:', alreadyPlayed);
+    if (alreadyPlayed) { console.log('blocked by alreadyPlayed'); return; }
     await fbMarkPlayed(playerName, dayId);
     const pts = won ? (PONTOS[tries - 1] ?? 0) : 0;
     const existing = await fbGetPlayer(playerName);
+    console.log('existing player data:', existing);
     await fbSetPlayer(playerName, {
       name: playerName,
       pts: (existing?.pts ?? 0) + pts,
